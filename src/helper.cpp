@@ -125,6 +125,7 @@ namespace helper {
                 return false;
             }
             board.makeNullMove();
+            return true;
         }
 
         // assuming that board state is legal, and current turn is black
