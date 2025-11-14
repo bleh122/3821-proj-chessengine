@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
 
     // challenge is to enumerate a list of numbers (range 1-64) that is of length max_pieces_present
     // that covers all possible permutations. idk more elegant solution
+
     auto ending_states = helper::generate_piece_combinations(num_ending_pieces);
     for (auto i : ending_states) {
         for (auto j: i) {
@@ -45,7 +46,11 @@ int main(int argc, char** argv) {
         }
         // listing the combinations of pieces that are generated (not counting positions yet)
         std::cout << '\n';
+
+        helper::generate_checkmates_for_piece_set_for_player(i);
+        break;
     }
+
 
     for (auto i = 0; i < num_ending_pieces; ++i) {
         // current idea, generate all pieces and project them into different locations
