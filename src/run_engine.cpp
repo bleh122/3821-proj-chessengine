@@ -5,6 +5,16 @@
 #include <array>
 #include "./helper.cpp"
 #include <string>
+#include <unordered_set>
+
+namespace std {
+    template<>
+    struct hash<chess::Board> {
+        auto operator()(const chess::Board& board) const noexcept -> std::size_t {
+            return std::hash<std::string>{}(board.getFen());
+        }
+    };
+}
 
 int main(int argc, char** argv) {
     int num_ending_pieces = 0;
@@ -39,21 +49,18 @@ int main(int argc, char** argv) {
     // challenge is to enumerate a list of numbers (range 1-64) that is of length max_pieces_present
     // that covers all possible permutations. idk more elegant solution
 
-    auto ending_states = helper::generate_piece_combinations(num_ending_pieces);
-    for (auto i : ending_states) {
-        for (auto j: i) {
-            std::cout << j;
+    auto piece_combinations = helper::generate_piece_combinations(num_ending_pieces);
+    auto checkmate_states = std::unordered_set<std::string>();
+    for (auto i : piece_combinations) {
+        auto some_checkmates = helper::generate_checkmates_for_piece_set_for_player(i);
+        for (auto j : some_checkmates) {
+            checkmate_states.insert(j);
         }
-        // listing the combinations of pieces that are generated (not counting positions yet)
-        std::cout << '\n';
-
-        helper::generate_checkmates_for_piece_set_for_player(i);
-        break;
+        // break;
     }
 
-
-    for (auto i = 0; i < num_ending_pieces; ++i) {
-        // current idea, generate all pieces and project them into different locations
+    for (auto i: checkmate_states) {
+        std::cout << i << "\n";
     }
 
     return 0;

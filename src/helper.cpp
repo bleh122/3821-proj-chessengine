@@ -6,6 +6,7 @@
 #include <set>
 #include <algorithm>
 #include <string>
+#include <chess.hpp>
 
 namespace helper {
     // We use FEN strings to represent the chess board states as we input them into chess-library.
@@ -59,7 +60,7 @@ namespace helper {
             }
         }
 
-        auto has_enumerator_overlaps(std::vector<uint8_t> input) -> bool {
+        auto contains_enumerator_overlaps(std::vector<uint8_t> input) -> bool {
             std::sort(input.begin(), input.end());
 
             auto i = input.begin();
@@ -115,11 +116,28 @@ namespace helper {
 
             return FEN_string;
         }
+
+        // assuming that both players have kings (guaranteed from earlier code)
+        auto is_legal_board_state_black_turn(chess::Board& board) -> bool {
+            // check if white king is in check (and thus if game is illegal)
+            board.makeNullMove();
+            if (board.inCheck()) {
+                return false;
+            }
+            board.makeNullMove();
+        }
+
+        // assuming that board state is legal, and current turn is black
+        auto is_checkmate_win_for_white(chess::Board& board) -> bool {
+            return board.inCheck() && (board.isGameOver().first == chess::GameResultReason::CHECKMATE);
+        }
     }
 
     // Now, for a given set of pieces we want to generate all possible board states
     // We filter our boards for checkmates for white, and remove any illegal/underfilled states
-    auto generate_checkmates_for_piece_set_for_player(std::vector<char> const& pieces) -> void {
+    auto generate_checkmates_for_piece_set_for_player(std::vector<char> const& pieces) -> std::vector<std::string> {
+        auto checkmates_for_player = std::vector<std::string>{};
+
         // this lets us enumerate over the permutations of positions for each piece,
         // the uint8s represent the position of the piece on the board, and the index in our
         // enumerator correlates to its respective piece in the provided input vector of pieces
@@ -130,18 +148,24 @@ namespace helper {
         // have overlaps, and thus are underfilled
         while (enumerator != max_enumerator_value) {
             increment_enumerator(enumerator);
-            if (has_enumerator_overlaps(enumerator)) {
+            if (contains_enumerator_overlaps(enumerator)) {
                 continue;
             }
 
-            auto board_state = std::array<char, 1 + num_board_squares_minus_one>{};
+            auto board_array = std::array<char, 1 + num_board_squares_minus_one>{};
             for (auto i = 0; i < pieces.size(); ++i) {
-                board_state[enumerator[i]] = pieces[i];
+                board_array[enumerator[i]] = pieces[i];
             }
 
-            auto FEN_string = convert_array_to_FEN(board_state);
-            std::cout << FEN_string << "\n";
+            auto FEN_string = convert_array_to_FEN(board_array);
+            auto board_state = chess::Board(FEN_string);
+            if (is_legal_board_state_black_turn(board_state) && is_checkmate_win_for_white(board_state)) {
+                checkmates_for_player.emplace_back(FEN_string);
+            }
+            // break;
         }
+
+        return checkmates_for_player;
     }
 }
 
