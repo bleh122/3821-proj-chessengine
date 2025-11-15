@@ -313,6 +313,13 @@ namespace helper {
         return predecessor_board_states;
     }
 
+    namespace {
+        auto board_to_FEN_wrapper(chess::Board& board) -> std::string {
+            auto temp = convert_FEN_to_array(board.getFen());
+            return convert_array_to_FEN(temp, (board.sideToMove() == chess::Color::WHITE));
+        }
+    }
+
     auto generate_successor_boards(std::string& curr_FEN) -> std::unordered_set<std::string> {
         auto successor_boards = std::unordered_set<std::string>{};
 
@@ -323,7 +330,7 @@ namespace helper {
         for (auto i : movelist) {
             auto successor_board = chess::Board(curr_FEN);
             successor_board.makeMove(i);
-            successor_boards.emplace(successor_board.getFen());
+            successor_boards.emplace(board_to_FEN_wrapper(successor_board));
         }
 
         return successor_boards;
@@ -340,7 +347,7 @@ namespace helper {
     auto is_forced_win(std::string& current_board, std::unordered_set<std::string> const& known_forced_wins) -> bool {
         auto successor_boards = generate_successor_boards(current_board);
 
-        for (auto& i : successor_boards) {
+        for (auto i : successor_boards) {
             if (not known_forced_wins.contains(i)) {
                 return false;
             }

@@ -91,10 +91,12 @@ int main(int argc, char** argv) {
         auto temp = std::unordered_set<std::string>();
         for (auto i : states_with_forceable_wins_for_white.back()) {
             if (states_with_forceable_wins_for_white.size() % 2 == 1) {
+                // it's white's move this turn
                 // these are states where white can select a move that will result in them winning
                 auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, true);
                 temp.insert(possible_predecessor_boards.begin(), possible_predecessor_boards.end());
             } else {
+                // it's black's move this turn
                 auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false);
                 for (auto j: possible_predecessor_boards) {
                     if (helper::is_forced_win(j, all_white_player_states_with_forceable_wins)) {
@@ -108,10 +110,15 @@ int main(int argc, char** argv) {
         all_white_player_states_with_forceable_wins.insert(temp.begin(), temp.end());
     }
 
+    auto counter = 0;
+    for (auto i : states_with_forceable_wins_for_white) {
+        std::cout << "\n\n\nDEPTH TO MATE: " << counter << "\n";
+        for (auto j : i) {
+            std::cout << "FEN: " << j << "\n";
+            // helper::print_FEN_as_ASCII_board(j);
 
-    for (auto i : all_white_player_states_with_forceable_wins) {
-        std::cout << "FEN: " << i << "\n";
-        helper::print_FEN_as_ASCII_board(i);
+        }
+        counter++;
     }
 
     return 0;
