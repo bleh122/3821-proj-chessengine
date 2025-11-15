@@ -49,19 +49,53 @@ int main(int argc, char** argv) {
     // challenge is to enumerate a list of numbers (range 1-64) that is of length max_pieces_present
     // that covers all possible permutations. idk more elegant solution
 
+    // for now we use an unordered set of strings, because afaik gcc has some error when trying to
+    // use the overriden equality operator for chess::Board for comparisons in the unordered set
+    // can maybe use tries in the future since they are strings?
     auto piece_combinations = helper::generate_piece_combinations(num_ending_pieces);
     auto checkmate_states = std::unordered_set<std::string>();
     for (auto i : piece_combinations) {
         auto some_checkmates = helper::generate_checkmates_for_piece_set_for_player(i);
         for (auto j : some_checkmates) {
             checkmate_states.insert(j);
+            break;
         }
-        // break;
     }
 
-    for (auto i: checkmate_states) {
+
+    // a set of all states with forceable wins for white (regardless of moves to mate)
+    auto white_turn_states_with_forceable_wins = std::unordered_set<std::string>();
+    white_turn_states_with_forceable_wins.insert(checkmate_states.begin(), checkmate_states.end());
+
+    // we use a vector to allow us to store the following:
+    // let n = index of element in vector
+    // if n is even, then the element represents it being the black players turn and there being n
+    //      moves left before forced checkmate (i.e. the black player can take any move and will
+    //      still lose)
+    // if n is odd, then the element represents it being the white players turn and there being n
+    //      moves left before forced checkmate (i.e. the white player has some move to take that
+    //      will allow them to force a win from that point onwards)
+    auto states_with_forceable_wins_for_white = std::vector<std::unordered_set<std::string>>{};
+    states_with_forceable_wins_for_white.emplace_back(checkmate_states);
+
+
+
+    for (auto i : states_with_forceable_wins_for_white.back()) {
         std::cout << i << "\n";
+        // auto curr_board_state = chess::Board(i);
+
+        helper::generate_predecessor_board_states(i);
+        break;
+
     }
+
+    // while (states_with_forceable_wins_for_white.size() < 3) {
+    // }
+
+
+    // for (auto i: checkmate_states) {
+    //     std::cout << i << "\n";
+    // }
 
     return 0;
 }

@@ -77,7 +77,7 @@ namespace helper {
             return false;
         }
 
-        auto convert_array_to_FEN(std::array<char, 1 + num_board_squares_minus_one>& board) -> std::string {
+        auto convert_array_to_FEN_black_turn(std::array<char, 1 + num_board_squares_minus_one>& board) -> std::string {
             auto FEN_string = std::string{};
             // variable names of row for rank, col for file
 
@@ -118,8 +118,8 @@ namespace helper {
         }
 
         // assuming that both players have kings (guaranteed from earlier code)
-        auto is_legal_board_state_black_turn(chess::Board& board) -> bool {
-            // check if white king is in check (and thus if game is illegal)
+        auto is_legal_board_state(chess::Board& board) -> bool {
+            // check if king of player who just made move is in check (and thus if game is illegal)
             board.makeNullMove();
             if (board.inCheck()) {
                 return false;
@@ -158,15 +158,110 @@ namespace helper {
                 board_array[enumerator[i]] = pieces[i];
             }
 
-            auto FEN_string = convert_array_to_FEN(board_array);
+            // FEN string is for a board state where it is black's turn
+            auto FEN_string = convert_array_to_FEN_black_turn(board_array);
             auto board_state = chess::Board(FEN_string);
-            if (is_legal_board_state_black_turn(board_state) && is_checkmate_win_for_white(board_state)) {
+            if (is_legal_board_state(board_state) && is_checkmate_win_for_white(board_state)) {
                 checkmates_for_player.emplace_back(FEN_string);
             }
             // break;
         }
 
         return checkmates_for_player;
+    }
+
+    // private functions
+    namespace {
+        // have to serialise back to an array to make it easy to create a new board
+        // because undoing illegal moves is undefined behaviour in chess-library
+        // (we don't have a checker) for that right now
+        auto convert_FEN_to_array(std::string const& FEN) -> std::array<char, 1 + num_board_squares_minus_one>  {
+            auto result_array = std::array<char, 1 + num_board_squares_minus_one>{};
+            auto index = 0;
+
+            for (auto curr = FEN.begin(); curr != FEN.end(); ++curr) {
+                if (*curr == ' ') break;
+                if (*curr == '/') continue;
+
+                if (std::isdigit(*curr)) {
+                    int empty_squares = (*curr) - '0';
+                    index += empty_squares;
+                } else {
+                    result_array[index] = *curr;
+                    ++index;
+                }
+            }
+
+            return result_array;
+        }
+
+    }
+
+    // Generates the direct predecessor board states for our current state, i.e. states where
+    // a player takes one move to result in the current state (player turn matters)
+    auto generate_predecessor_board_states(std::string& FEN_string) -> void {
+        auto curr = chess::Board(FEN_string);
+
+        auto occupied_spaces_bitboard = curr.occ();
+        // bitboard of the player who just took a move, so we can find the squares of their pieces
+        auto prev_turns_players_pieces_bitboard = curr.them(curr.sideToMove());
+        auto res = convert_FEN_to_array(FEN_string);
+
+
+        // we iterate over each piece of the player who just took a move, and undo the move
+        while (prev_turns_players_pieces_bitboard.count()) {
+            break;
+
+            auto lsb_position = prev_turns_players_pieces_bitboard.pop();
+            auto sq = chess::Square(lsb_position);
+            std::cout << sq << ' ';
+            auto piece = curr.at<chess::PieceType>(sq);
+
+            switch (piece.internal()) {
+                ///TODO: implement logic for uncapture, and logic for pawn unmoving and unpromotion
+                case chess::PieceType::PAWN:
+                    std::cout << "PAWN\n";
+                break;
+
+                case chess::PieceType::QUEEN:
+                    std::cout << "QUEEN\n";
+                break;
+
+                case chess::PieceType::ROOK:
+                {
+                    std::cout << "ROOK\n";
+                    auto possible_predecessor_piece_locations_bitboard = chess::attacks::rook(sq, occupied_spaces_bitboard);
+                    while (possible_predecessor_piece_locations_bitboard.count()) {
+                        auto lsb_predecessor_position = possible_predecessor_piece_locations_bitboard.pop();
+                        auto sq_predecessor = chess::Square(lsb_predecessor_position);
+
+                        auto move = chess::Move::make<chess::Move::NORMAL>(sq_predecessor, sq, piece);
+                        // std::cout << static_cast<int>(lsb_predecessor_position) << "  ";
+                        // std::cout << sq_predecessor << " ";
+                    }
+                    // std::cout << "\n";
+
+                }
+                break;
+
+                case chess::PieceType::BISHOP:
+                    std::cout << "BISHOP\n";
+                break;
+
+                case chess::PieceType::KNIGHT:
+                    std::cout << "KNIGHT\n";
+                break;
+
+                case chess::PieceType::KING:
+                    std::cout << "KING\n";
+                break;
+
+                default:
+                    std::cout << "Error, piece type is impossible?\n";
+                    std::abort();
+                break;
+            }
+        }
     }
 }
 
