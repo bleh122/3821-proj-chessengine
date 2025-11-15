@@ -78,19 +78,33 @@ int main(int argc, char** argv) {
     auto states_with_forceable_wins_for_white = std::vector<std::unordered_set<std::string>>{};
     states_with_forceable_wins_for_white.emplace_back(checkmate_states);
 
-    for (auto i : states_with_forceable_wins_for_white.back()) {
-        auto possible_predecessor_boards = helper::generate_predecessor_board_states(i);
 
-        for (auto j: possible_predecessor_boards) {
+    while (states_with_forceable_wins_for_white.size() < 3) {
+        std::cout << "\n\ncurr size of vector is " << states_with_forceable_wins_for_white.size() << "\n";
+        auto temp = std::unordered_set<std::string>();
+        for (auto i : states_with_forceable_wins_for_white.back()) {
+            if (states_with_forceable_wins_for_white.size() % 2 == 1) {
+                // these are states where white can select a move that will result in them winning
+                auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, true);
+                temp.insert(possible_predecessor_boards.begin(), possible_predecessor_boards.end());
+            } else {
+                auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false);
+                for (auto j: possible_predecessor_boards) {
+                    std::cout << "origin: " << i << "\n";
+                    helper::print_FEN_as_ASCII_board(i);
+                    std::cout << "testing predecessor: " << j << "\n";
+                    helper::print_FEN_as_ASCII_board(j);
+                    auto successor_boards = helper::generate_successor_boards(j);
+                    for (auto k : successor_boards) {
+                        std::cout << "  showing successor: " << k << "\n";
+                        helper::print_FEN_as_ASCII_board(k);
+                    }
+                }
+                break;
+            }
         }
-        // std::cout << i << "\n";
-        // auto curr_board_state = chess::Board(i);
-        break;
-
+        states_with_forceable_wins_for_white.emplace_back(temp);
     }
-
-    // while (states_with_forceable_wins_for_white.size() < 3) {
-    // }
 
 
     // for (auto i: checkmate_states) {

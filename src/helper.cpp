@@ -227,7 +227,7 @@ namespace helper {
             chess::PieceType& piece,
             chess::Square& current_position,
             chess::Bitboard& current_occupied_spaces
-        ) {
+        ) -> chess::Bitboard {
             switch (piece.internal()) {
                 ///TODO: and logic for pawn unmoving and unpromotion
                 case chess::PieceType::PAWN:
@@ -264,7 +264,10 @@ namespace helper {
 
     // Generates the direct predecessor board states for our current state, i.e. states where
     // a player takes one move to result in the current state (player turn matters)
-    auto generate_predecessor_board_states(std::string& FEN_string) -> std::unordered_set<std::string> {
+    auto generate_predecessor_board_states(
+        std::string& FEN_string,
+        bool isWhiteTurn
+    ) -> std::unordered_set<std::string> {
         auto predecessor_board_states = std::unordered_set<std::string>{};
         auto curr = chess::Board(FEN_string);
 
@@ -297,7 +300,7 @@ namespace helper {
                     // with one where it now has it be all potential other pieces
                     board_array_copy[curr_index] = '\0';
 
-                    auto predecessor_FEN_string = convert_array_to_FEN(board_array_copy, true);
+                    auto predecessor_FEN_string = convert_array_to_FEN(board_array_copy, isWhiteTurn);
                     auto predecessor_board = chess::Board(predecessor_FEN_string);
                     if (is_legal_board_state(predecessor_board)) {
                         predecessor_board_states.emplace(predecessor_FEN_string);
@@ -307,6 +310,27 @@ namespace helper {
         }
 
         return predecessor_board_states;
+    }
+
+    auto generate_successor_boards(std::string& curr_FEN) -> std::unordered_set<std::string> {
+        auto successor_boards = std::unordered_set<std::string>{};
+
+        auto board = chess::Board(curr_FEN);
+        auto movelist = chess::Movelist();
+        chess::movegen::legalmoves(movelist, board);
+
+        for (auto i : movelist) {
+            auto successor_board = chess::Board(curr_FEN);
+            successor_board.makeMove(i);
+            successor_boards.emplace(successor_board.getFen());
+        }
+
+        return successor_boards;
+    }
+
+    auto print_FEN_as_ASCII_board(std::string& input) -> void {
+        auto board = convert_FEN_to_array(input);
+        print_board_array_representation(board);
     }
 }
 
