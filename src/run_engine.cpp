@@ -17,8 +17,9 @@ namespace std {
 }
 
 int main(int argc, char** argv) {
-    int num_ending_pieces = 0;
-    int max_pieces_present = 0;
+    int num_ending_pieces;
+    int max_pieces_present;
+    int depth_to_mate_checked;
 
     if (argc < 3) {
         std::cout << "Enter the number of pieces that will be present at checkmate: ";
@@ -32,9 +33,16 @@ int main(int argc, char** argv) {
             std::cout << "Error: incorrect input type for integer\n";
             return 0;
         }
+
+        std::cout << "Enter the max number of unmoves/depth to mate to check: ";
+        if (not (std::cin >> depth_to_mate_checked)) {
+            std::cout << "Error: incorrect input type for integer\n";
+            return 0;
+        }
     } else {
         num_ending_pieces = std::stoi(argv[1]);
         max_pieces_present = std::stoi(argv[2]);
+        depth_to_mate_checked = std::stoi(argv[3]);
     }
 
     if (num_ending_pieces < 3 or num_ending_pieces > 5) {
@@ -58,14 +66,14 @@ int main(int argc, char** argv) {
         auto some_checkmates = helper::generate_checkmates_for_piece_set_for_player(i);
         for (auto j : some_checkmates) {
             checkmate_states.insert(j);
-            break;
+            // break;
         }
     }
 
 
     // a set of all states with forceable wins for white (regardless of moves to mate)
-    auto white_turn_states_with_forceable_wins = std::unordered_set<std::string>();
-    white_turn_states_with_forceable_wins.insert(checkmate_states.begin(), checkmate_states.end());
+    auto all_white_player_states_with_forceable_wins = std::unordered_set<std::string>();
+    all_white_player_states_with_forceable_wins.insert(checkmate_states.begin(), checkmate_states.end());
 
     // we use a vector to allow us to store the following:
     // let n = index of element in vector
@@ -79,8 +87,7 @@ int main(int argc, char** argv) {
     states_with_forceable_wins_for_white.emplace_back(checkmate_states);
 
 
-    while (states_with_forceable_wins_for_white.size() < 3) {
-        std::cout << "\n\ncurr size of vector is " << states_with_forceable_wins_for_white.size() << "\n";
+    while (states_with_forceable_wins_for_white.size() < depth_to_mate_checked) {
         auto temp = std::unordered_set<std::string>();
         for (auto i : states_with_forceable_wins_for_white.back()) {
             if (states_with_forceable_wins_for_white.size() % 2 == 1) {
@@ -90,26 +97,22 @@ int main(int argc, char** argv) {
             } else {
                 auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false);
                 for (auto j: possible_predecessor_boards) {
-                    std::cout << "origin: " << i << "\n";
-                    helper::print_FEN_as_ASCII_board(i);
-                    std::cout << "testing predecessor: " << j << "\n";
-                    helper::print_FEN_as_ASCII_board(j);
-                    auto successor_boards = helper::generate_successor_boards(j);
-                    for (auto k : successor_boards) {
-                        std::cout << "  showing successor: " << k << "\n";
-                        helper::print_FEN_as_ASCII_board(k);
+                    if (helper::is_forced_win(j, all_white_player_states_with_forceable_wins)) {
+                        temp.emplace(j);
                     }
                 }
-                break;
+                // break;
             }
         }
         states_with_forceable_wins_for_white.emplace_back(temp);
+        all_white_player_states_with_forceable_wins.insert(temp.begin(), temp.end());
     }
 
 
-    // for (auto i: checkmate_states) {
-    //     std::cout << i << "\n";
-    // }
+    for (auto i : all_white_player_states_with_forceable_wins) {
+        std::cout << "FEN: " << i << "\n";
+        helper::print_FEN_as_ASCII_board(i);
+    }
 
     return 0;
 }

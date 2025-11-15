@@ -8,6 +8,7 @@
 #include <string>
 #include <chess.hpp>
 #include <unordered_set>
+#include <numeric>
 
 namespace helper {
     // We use FEN strings to represent the chess board states as we input them into chess-library.
@@ -134,7 +135,7 @@ namespace helper {
 
         // assuming that board state is legal, and current turn is black
         auto is_checkmate_win_for_white(chess::Board& board) -> bool {
-            return board.inCheck() && (board.isGameOver().first == chess::GameResultReason::CHECKMATE);
+            return board.inCheck() and (board.isGameOver().first == chess::GameResultReason::CHECKMATE);
         }
     }
 
@@ -165,7 +166,7 @@ namespace helper {
             // FEN string is for a board state where it is black's turn
             auto FEN_string = convert_array_to_FEN(board_array, false);
             auto board_state = chess::Board(FEN_string);
-            if (is_legal_board_state(board_state) && is_checkmate_win_for_white(board_state)) {
+            if (is_legal_board_state(board_state) and is_checkmate_win_for_white(board_state)) {
                 checkmates_for_player.emplace_back(FEN_string);
             }
             // break;
@@ -201,7 +202,7 @@ namespace helper {
 
         auto print_board_array_representation(std::array<char, 1 + num_board_squares_minus_one>& board) {
             for (auto i = 0; i < 64; i++) {
-                if (i % 8 == 0 && i != 0) {
+                if (i % 8 == 0 and i != 0) {
                     std::cout << "\n";
                 }
                 if (board[i] == '\0') {
@@ -331,6 +332,21 @@ namespace helper {
     auto print_FEN_as_ASCII_board(std::string& input) -> void {
         auto board = convert_FEN_to_array(input);
         print_board_array_representation(board);
+    }
+
+    // If every successor board to our current board is already known as a forced win, then this is
+    // a state where we can force a win (a state can go from returning false to returning true
+    // upon repeated queries as our set of known forced wins increases)
+    auto is_forced_win(std::string& current_board, std::unordered_set<std::string> const& known_forced_wins) -> bool {
+        auto successor_boards = generate_successor_boards(current_board);
+
+        for (auto& i : successor_boards) {
+            if (not known_forced_wins.contains(i)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
