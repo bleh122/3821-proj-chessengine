@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <chess.hpp>
+#include <unordered_set>
 
 namespace helper {
     // We use FEN strings to represent the chess board states as we input them into chess-library.
@@ -77,7 +78,10 @@ namespace helper {
             return false;
         }
 
-        auto convert_array_to_FEN_black_turn(std::array<char, 1 + num_board_squares_minus_one>& board) -> std::string {
+        auto convert_array_to_FEN(
+            std::array<char, 1 + num_board_squares_minus_one>& board,
+            bool isWhiteTurn
+        ) -> std::string {
             auto FEN_string = std::string{};
             // variable names of row for rank, col for file
 
@@ -112,7 +116,7 @@ namespace helper {
             }
 
             // currently ignoring castling and en passants...
-            FEN_string.append(" b - - 0 1");
+            FEN_string.append(isWhiteTurn ? " w - - 0 1" : " b - - 0 1");
 
             return FEN_string;
         }
@@ -159,7 +163,7 @@ namespace helper {
             }
 
             // FEN string is for a board state where it is black's turn
-            auto FEN_string = convert_array_to_FEN_black_turn(board_array);
+            auto FEN_string = convert_array_to_FEN(board_array, false);
             auto board_state = chess::Board(FEN_string);
             if (is_legal_board_state(board_state) && is_checkmate_win_for_white(board_state)) {
                 checkmates_for_player.emplace_back(FEN_string);
@@ -195,65 +199,59 @@ namespace helper {
             return result_array;
         }
 
-    }
+        auto print_board_array_representation(std::array<char, 1 + num_board_squares_minus_one>& board) {
+            for (auto i = 0; i < 64; i++) {
+                if (i % 8 == 0 && i != 0) {
+                    std::cout << "\n";
+                }
+                if (board[i] == '\0') {
+                    std::cout << "_";
+                } else {
+                    std::cout << board[i];
+                }
 
-    // Generates the direct predecessor board states for our current state, i.e. states where
-    // a player takes one move to result in the current state (player turn matters)
-    auto generate_predecessor_board_states(std::string& FEN_string) -> void {
-        auto curr = chess::Board(FEN_string);
+            }
+            std::cout << "\n\n";
+        }
 
-        auto occupied_spaces_bitboard = curr.occ();
-        // bitboard of the player who just took a move, so we can find the squares of their pieces
-        auto prev_turns_players_pieces_bitboard = curr.them(curr.sideToMove());
-        auto res = convert_FEN_to_array(FEN_string);
+        // chess notation has different order of counting for rank (row), so to convert it to our
+        // contiguous array indices we have to translate it like so
+        auto convert_square_to_index_for_array(chess::Square& sq) -> int {
+            int row_offset = 7 - sq.rank();
+            int col_offset = sq.file();
 
+            return (row_offset * 8) + col_offset;
+        }
 
-        // we iterate over each piece of the player who just took a move, and undo the move
-        while (prev_turns_players_pieces_bitboard.count()) {
-            break;
-
-            auto lsb_position = prev_turns_players_pieces_bitboard.pop();
-            auto sq = chess::Square(lsb_position);
-            std::cout << sq << ' ';
-            auto piece = curr.at<chess::PieceType>(sq);
-
+        auto get_piece_possible_predecessor_locations(
+            chess::PieceType& piece,
+            chess::Square& current_position,
+            chess::Bitboard& current_occupied_spaces
+        ) {
             switch (piece.internal()) {
-                ///TODO: implement logic for uncapture, and logic for pawn unmoving and unpromotion
+                ///TODO: and logic for pawn unmoving and unpromotion
                 case chess::PieceType::PAWN:
-                    std::cout << "PAWN\n";
+                    return chess::Bitboard(); // default is empty
                 break;
 
                 case chess::PieceType::QUEEN:
-                    std::cout << "QUEEN\n";
+                    return chess::attacks::queen(current_position, current_occupied_spaces);
                 break;
 
                 case chess::PieceType::ROOK:
-                {
-                    std::cout << "ROOK\n";
-                    auto possible_predecessor_piece_locations_bitboard = chess::attacks::rook(sq, occupied_spaces_bitboard);
-                    while (possible_predecessor_piece_locations_bitboard.count()) {
-                        auto lsb_predecessor_position = possible_predecessor_piece_locations_bitboard.pop();
-                        auto sq_predecessor = chess::Square(lsb_predecessor_position);
-
-                        auto move = chess::Move::make<chess::Move::NORMAL>(sq_predecessor, sq, piece);
-                        // std::cout << static_cast<int>(lsb_predecessor_position) << "  ";
-                        // std::cout << sq_predecessor << " ";
-                    }
-                    // std::cout << "\n";
-
-                }
+                    return chess::attacks::rook(current_position, current_occupied_spaces);
                 break;
 
                 case chess::PieceType::BISHOP:
-                    std::cout << "BISHOP\n";
+                    return chess::attacks::bishop(current_position, current_occupied_spaces);
                 break;
 
                 case chess::PieceType::KNIGHT:
-                    std::cout << "KNIGHT\n";
+                    return chess::attacks::knight(current_position);
                 break;
 
                 case chess::PieceType::KING:
-                    std::cout << "KING\n";
+                    return chess::attacks::king(current_position);
                 break;
 
                 default:
@@ -262,6 +260,53 @@ namespace helper {
                 break;
             }
         }
+    }
+
+    // Generates the direct predecessor board states for our current state, i.e. states where
+    // a player takes one move to result in the current state (player turn matters)
+    auto generate_predecessor_board_states(std::string& FEN_string) -> std::unordered_set<std::string> {
+        auto predecessor_board_states = std::unordered_set<std::string>{};
+        auto curr = chess::Board(FEN_string);
+
+        auto occupied_spaces_bitboard = curr.occ();
+        // bitboard of the player who just took a move, so we can find the squares of their pieces
+        auto prev_turns_players_pieces_bitboard = curr.them(curr.sideToMove());
+        auto board_array_representation = convert_FEN_to_array(FEN_string);
+
+        // we iterate over each piece of the player who just took a move, and undo the move
+        while (prev_turns_players_pieces_bitboard.count()) {
+            auto lsb_position = prev_turns_players_pieces_bitboard.pop();
+            auto sq = chess::Square(lsb_position);
+            auto curr_index = convert_square_to_index_for_array(sq);
+            auto piece = curr.at<chess::PieceType>(sq);
+
+            auto predecessor_locs_bitboard = get_piece_possible_predecessor_locations(piece, sq, occupied_spaces_bitboard);
+            while (predecessor_locs_bitboard.count()) {
+                auto lsb_predecessor_position = predecessor_locs_bitboard.pop();
+                auto sq_predecessor = chess::Square(lsb_predecessor_position);
+
+                auto predecessor_index = convert_square_to_index_for_array(sq_predecessor);
+                if (board_array_representation[predecessor_index] == '\0') {
+
+                    // char arrays are copied by value from what google says
+                    auto board_array_copy = board_array_representation;
+                    // do a swap where we move our piece from current location to new location
+                    board_array_copy[predecessor_index] = board_array_copy[curr_index];
+
+                    ///TODO: Implement logic for uncapture by replacing this line of logic
+                    // with one where it now has it be all potential other pieces
+                    board_array_copy[curr_index] = '\0';
+
+                    auto predecessor_FEN_string = convert_array_to_FEN(board_array_copy, true);
+                    auto predecessor_board = chess::Board(predecessor_FEN_string);
+                    if (is_legal_board_state(predecessor_board)) {
+                        predecessor_board_states.emplace(predecessor_FEN_string);
+                    }
+                }
+            }
+        }
+
+        return predecessor_board_states;
     }
 }
 

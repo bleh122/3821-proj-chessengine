@@ -78,13 +78,13 @@ int main(int argc, char** argv) {
     auto states_with_forceable_wins_for_white = std::vector<std::unordered_set<std::string>>{};
     states_with_forceable_wins_for_white.emplace_back(checkmate_states);
 
-
-
     for (auto i : states_with_forceable_wins_for_white.back()) {
-        std::cout << i << "\n";
-        // auto curr_board_state = chess::Board(i);
+        auto possible_predecessor_boards = helper::generate_predecessor_board_states(i);
 
-        helper::generate_predecessor_board_states(i);
+        for (auto j: possible_predecessor_boards) {
+        }
+        // std::cout << i << "\n";
+        // auto curr_board_state = chess::Board(i);
         break;
 
     }
