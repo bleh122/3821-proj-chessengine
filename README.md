@@ -8,6 +8,7 @@ To build the project, run the following commands:
 ```bash
 git clone https://github.com/bleh122/3821-proj-chessengine.git
 cd 3821-proj-chessengine
+cmake -DCMAKE_BUILD_TYPE=Release -B build
 cmake -B build
 cd build
 make
