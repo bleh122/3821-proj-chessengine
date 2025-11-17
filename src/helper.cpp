@@ -224,34 +224,47 @@ namespace helper {
             return (row_offset * 8) + col_offset;
         }
 
+        auto convert_array_index_to_square(int index) -> chess::Square {
+            int rank = 7 - (index / 8);
+            int file = index % 8;
+            return chess::Square(chess::Rank(rank), chess::File(file));
+        }
+
         auto get_piece_possible_predecessor_locations(
-            chess::PieceType& piece,
+            chess::Piece& piece,
             chess::Square& current_position,
             chess::Bitboard& current_occupied_spaces
         ) -> chess::Bitboard {
             switch (piece.internal()) {
                 ///TODO: and logic for pawn unmoving and unpromotion
-                case chess::PieceType::PAWN:
-                    return chess::Bitboard(); // default is empty
+                // currently this is handled in a separate function due to the nature of pawn uncaptures
+                case chess::Piece::WHITEPAWN:
+                case chess::Piece::BLACKPAWN:
+                    return chess::Bitboard();
                 break;
 
-                case chess::PieceType::QUEEN:
+                case chess::Piece::WHITEQUEEN:
+                case chess::Piece::BLACKQUEEN:
                     return chess::attacks::queen(current_position, current_occupied_spaces);
                 break;
 
-                case chess::PieceType::ROOK:
+                case chess::Piece::WHITEROOK:
+                case chess::Piece::BLACKROOK:
                     return chess::attacks::rook(current_position, current_occupied_spaces);
                 break;
 
-                case chess::PieceType::BISHOP:
+                case chess::Piece::WHITEBISHOP:
+                case chess::Piece::BLACKBISHOP:
                     return chess::attacks::bishop(current_position, current_occupied_spaces);
                 break;
 
-                case chess::PieceType::KNIGHT:
+                case chess::Piece::WHITEKNIGHT:
+                case chess::Piece::BLACKKNIGHT:
                     return chess::attacks::knight(current_position);
                 break;
 
-                case chess::PieceType::KING:
+                case chess::Piece::WHITEKING:
+                case chess::Piece::BLACKKING:
                     return chess::attacks::king(current_position);
                 break;
 
@@ -281,6 +294,77 @@ namespace helper {
             auto predecessor_FEN_string = convert_array_to_FEN(board_array_copy, isWhiteTurn);
             return predecessor_FEN_string;
         }
+
+
+        auto generate_predecessor_board_states_for_pawns(
+            chess::Piece& piece,
+            chess::Square& sq,
+            std::string& FEN_string,
+            bool isWhiteTurn
+        ) -> std::vector<std::string> {
+            auto res = std::vector<std::string>{};
+
+            auto board_array_representation = convert_FEN_to_array(FEN_string);
+            auto curr_index = convert_square_to_index_for_array(sq);
+
+            if (piece == chess::Piece::WHITEPAWN) {
+                if (curr_index < 48) {
+                    // unmoving pawn to square behind (below in chess notation for white)
+                    if (board_array_representation[curr_index + 8] == '\0') {
+                        auto temp = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index + 8, curr_index, '\0');
+                        res.emplace_back(temp);
+                    }
+
+                    // uncapturing pawn to square that is below and to the left
+                    if (((curr_index % 8) > 0) and board_array_representation[curr_index + 7] == '\0') {
+                        for (auto piece_type : piece_types_without_kings) {
+                            if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
+                                auto temp = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index + 7, curr_index, piece_type);
+                                res.emplace_back(temp);
+                            }
+                        }
+                    }
+                    // uncapturing pawn to square that is below and to the right
+                    if (((curr_index % 8) < 7) and board_array_representation[curr_index + 9] == '\0') {
+                        for (auto piece_type : piece_types_without_kings) {
+                            if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
+                                auto temp = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index + 9, curr_index, piece_type);
+                                res.emplace_back(temp);
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (curr_index > 15) {
+                    // unmoving pawn to square behind (above in chess notation for black)
+                    if (board_array_representation[curr_index - 8] == '\0') {
+                        auto temp = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index - 8, curr_index, '\0');
+                        res.emplace_back(temp);
+                    }
+
+                    // uncapturing pawn to square that is above and to the left
+                    if (((curr_index % 8) > 0) and board_array_representation[curr_index - 9] == '\0') {
+                        for (auto piece_type : piece_types_without_kings) {
+                            if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
+                                auto temp = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index - 9, curr_index, piece_type);
+                                res.emplace_back(temp);
+                            }
+                        }
+                    }
+                    // uncapturing pawn to square that is below and to the right
+                    if (((curr_index % 8) < 7) and board_array_representation[curr_index - 7] == '\0') {
+                        for (auto piece_type : piece_types_without_kings) {
+                            if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
+                                auto temp = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index - 7, curr_index, piece_type);
+                                res.emplace_back(temp);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return res;
+        }
     }
 
     auto print_FEN_as_ASCII_board(std::string& input) -> void;
@@ -306,30 +390,43 @@ namespace helper {
             auto lsb_position = prev_turns_players_pieces_bitboard.pop();
             auto sq = chess::Square(lsb_position);
             auto curr_index = convert_square_to_index_for_array(sq);
-            auto piece = curr.at<chess::PieceType>(sq);
+            auto piece = curr.at<chess::Piece>(sq);
 
-            auto predecessor_locs_bitboard = get_piece_possible_predecessor_locations(piece, sq, occupied_spaces_bitboard);
-            while (predecessor_locs_bitboard.count()) {
-                auto lsb_predecessor_position = predecessor_locs_bitboard.pop();
-                auto sq_predecessor = chess::Square(lsb_predecessor_position);
+            if ((piece == chess::Piece::WHITEPAWN) or (piece == chess::Piece::BLACKPAWN)) {
+                // currently commenting out pawn logic due to buggy impl
 
-                auto predecessor_index = convert_square_to_index_for_array(sq_predecessor);
-                if (board_array_representation[predecessor_index] == '\0') {
-                    if (occupied_spaces_bitboard.count() < max_pieces_present) {
-                        for (auto piece_type : piece_types_without_kings) {
-                            if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
-                                auto predecessor_FEN_string = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index, predecessor_index, piece_type);
-                                auto predecessor_board = chess::Board(predecessor_FEN_string);
-                                if (is_legal_board_state(predecessor_board)) {
-                                    predecessor_board_states.emplace(predecessor_FEN_string);
+                // auto predecessor_FEN_strings = generate_predecessor_board_states_for_pawns(piece, sq, FEN_string, isWhiteTurn);
+                // for (auto predecessor_FEN_string : predecessor_FEN_strings) {
+                //     auto predecessor_board = chess::Board(predecessor_FEN_string);
+                //     if (is_legal_board_state(predecessor_board)) {
+                //         print_FEN_as_ASCII_board(predecessor_FEN_string);
+                //         predecessor_board_states.emplace(predecessor_FEN_string);
+                //     }
+                // }
+            } else {
+                auto predecessor_locs_bitboard = get_piece_possible_predecessor_locations(piece, sq, occupied_spaces_bitboard);
+                while (predecessor_locs_bitboard.count()) {
+                    auto lsb_predecessor_position = predecessor_locs_bitboard.pop();
+                    auto sq_predecessor = chess::Square(lsb_predecessor_position);
+
+                    auto predecessor_index = convert_square_to_index_for_array(sq_predecessor);
+                    if (board_array_representation[predecessor_index] == '\0') {
+                        if (occupied_spaces_bitboard.count() < max_pieces_present) {
+                            for (auto piece_type : piece_types_without_kings) {
+                                if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
+                                    auto predecessor_FEN_string = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index, predecessor_index, piece_type);
+                                    auto predecessor_board = chess::Board(predecessor_FEN_string);
+                                    if (is_legal_board_state(predecessor_board)) {
+                                        predecessor_board_states.emplace(predecessor_FEN_string);
+                                    }
                                 }
                             }
                         }
-                    }
-                    auto predecessor_FEN_string = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index, predecessor_index, '\0');
-                    auto predecessor_board = chess::Board(predecessor_FEN_string);
-                    if (is_legal_board_state(predecessor_board)) {
-                        predecessor_board_states.emplace(predecessor_FEN_string);
+                        auto predecessor_FEN_string = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index, predecessor_index, '\0');
+                        auto predecessor_board = chess::Board(predecessor_FEN_string);
+                        if (is_legal_board_state(predecessor_board)) {
+                            predecessor_board_states.emplace(predecessor_FEN_string);
+                        }
                     }
                 }
             }
