@@ -64,6 +64,12 @@ set(CMAKE_CXX_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT "-fsanitize=address,undefined
 include_directories(${CMAKE_SOURCE_DIR}/external/chess-library/include)
 
 add_executable(run_engine src/run_engine.cpp)
+add_executable(get_next_move src/get_next_move.cpp)
+
 target_compile_options(run_engine PRIVATE
+    -w  # Disable all warnings for this target
+)
+
+target_compile_options(get_next_move PRIVATE
     -w  # Disable all warnings for this target
 )
