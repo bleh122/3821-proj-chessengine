@@ -261,13 +261,37 @@ namespace helper {
                 break;
             }
         }
+
+        auto piece_type_belongs_to_player(char piece_type, bool isWhiteSide) -> bool {
+            return (static_cast<bool>(isupper(piece_type)) == isWhiteSide);
+        }
+
+        auto perform_unmove_or_uncapture(
+            std::array<char, 1 + num_board_squares_minus_one>& board_array_representation,
+            bool isWhiteTurn,
+            int curr_index,
+            int predecessor_index,
+            char piece_type
+        ) -> std::string {
+            // char arrays are copied by value from what google says
+            auto board_array_copy = board_array_representation;
+            // do a swap where we move our piece from current location to new location
+            board_array_copy[predecessor_index] = board_array_copy[curr_index];
+            board_array_copy[curr_index] = piece_type;
+            auto predecessor_FEN_string = convert_array_to_FEN(board_array_copy, isWhiteTurn);
+            return predecessor_FEN_string;
+        }
     }
+
+    auto print_FEN_as_ASCII_board(std::string& input) -> void;
+
 
     // Generates the direct predecessor board states for our current state, i.e. states where
     // a player takes one move to result in the current state (player turn matters)
     auto generate_predecessor_board_states(
         std::string& FEN_string,
-        bool isWhiteTurn
+        bool isWhiteTurn,
+        int max_pieces_present
     ) -> std::unordered_set<std::string> {
         auto predecessor_board_states = std::unordered_set<std::string>{};
         auto curr = chess::Board(FEN_string);
@@ -291,17 +315,18 @@ namespace helper {
 
                 auto predecessor_index = convert_square_to_index_for_array(sq_predecessor);
                 if (board_array_representation[predecessor_index] == '\0') {
-
-                    // char arrays are copied by value from what google says
-                    auto board_array_copy = board_array_representation;
-                    // do a swap where we move our piece from current location to new location
-                    board_array_copy[predecessor_index] = board_array_copy[curr_index];
-
-                    ///TODO: Implement logic for uncapture by replacing this line of logic
-                    // with one where it now has it be all potential other pieces
-                    board_array_copy[curr_index] = '\0';
-
-                    auto predecessor_FEN_string = convert_array_to_FEN(board_array_copy, isWhiteTurn);
+                    if (occupied_spaces_bitboard.count() < max_pieces_present) {
+                        for (auto piece_type : piece_types_without_kings) {
+                            if (not piece_type_belongs_to_player(piece_type, isWhiteTurn)) {
+                                auto predecessor_FEN_string = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index, predecessor_index, piece_type);
+                                auto predecessor_board = chess::Board(predecessor_FEN_string);
+                                if (is_legal_board_state(predecessor_board)) {
+                                    predecessor_board_states.emplace(predecessor_FEN_string);
+                                }
+                            }
+                        }
+                    }
+                    auto predecessor_FEN_string = perform_unmove_or_uncapture(board_array_representation, isWhiteTurn, curr_index, predecessor_index, '\0');
                     auto predecessor_board = chess::Board(predecessor_FEN_string);
                     if (is_legal_board_state(predecessor_board)) {
                         predecessor_board_states.emplace(predecessor_FEN_string);

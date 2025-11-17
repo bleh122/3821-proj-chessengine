@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
             if (depth_to_mate_forced_wins_for_white.size() % 2 == 1) {
                 // it's white's move this turn
                 // these are states where white can select a move that will result in them winning
-                auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, true);
+                auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, true, max_pieces_present);
 
                 for (auto j : possible_predecessor_boards) {
                     // avoid recalculation for states we already know to be winning
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
             } else {
                 // it's black's move this turn
                 // these are states where whatever move black takes, they will lose in the end
-                auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false);
+                auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false, max_pieces_present);
                 for (auto j: possible_predecessor_boards) {
                     if (helper::is_forced_win(j, all_white_player_states_with_forceable_wins)) {
                         if (not all_white_player_states_with_forceable_wins.contains(j)) {
