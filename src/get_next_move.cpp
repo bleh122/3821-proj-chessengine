@@ -29,10 +29,10 @@ auto get_curr_board_FEN() {
     std::string FEN_string;
     std::string turn = "w";
 
-    std::cout   << "\n\nPlease enter a FEN string with the information of the current board " 
-                << "(it must always be our player's turn, with our player on the white side, "
-                << "only piece positions are required, e.g. "
-                << "'8/1k6/8/4K3/8/8/Q7/8' as the turn being [w] for the white player is implied): ";
+    std::cout << "\n\nPlease enter a FEN string with the information of the current board "
+        << "(it must always be our player's turn, with our player on the white side, "
+        << "only piece positions are required, e.g. "
+        << "'8/1k6/8/4K3/8/8/Q7/8' as the turn being [w] for the white player is implied): ";
     if (not (std::cin >> FEN_string)) {
         std::cout << "Error: string not entered.\n";
         std::abort();
@@ -92,14 +92,19 @@ int main(void) {
                 std::cout << "Move the " << convert_piece_to_string[board.at(curr_move.from())]
                     << " from " << curr_move.from() << " to " << curr_move.to() << ".\n";
 
+                if (depth_to_mate - 1 == 0) {
+                    std::cout << "Congrats for using this tablebase to checkmate.\n";
+                    return 0;
+                }
+
                 std::cout << "\n\nNow wait for the opponent to take their own move, then continue.\n\n";
 
                 FEN_string = get_curr_board_FEN();
+                break;
             }
         }
     }
 
-    std::cout << "Congrats for using this tablebase to checkmate.";
 
     return 0;
 }

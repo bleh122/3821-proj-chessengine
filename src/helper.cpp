@@ -33,7 +33,7 @@ namespace helper {
 
     // To generate the FEN strings, we first need to choose which pieces to include in the strings,
     // so we return a vector of vectors, where the nested vectors represent the set of pieces we use
-    auto generate_piece_combinations(int const num_pieces) -> std::vector<std::vector<char>> {
+    auto generate_piece_combinations_for_given_size(int const num_pieces) -> std::vector<std::vector<char>> {
         auto states = std::vector<std::vector<char>>{};
         states.emplace_back(std::vector<char>{'k', 'K'});
         for (auto i = 2; i < num_pieces; ++i) {
@@ -53,27 +53,47 @@ namespace helper {
         return states;
     }
 
-    auto generate_subsets_of_piece_combination(std::vector<char>& max_piece_combination) -> std::vector<std::vector<char>> {
+    auto generate_piece_combinations(int const num_pieces) -> std::vector<std::vector<char>> {
+        auto res = std::vector<std::vector<char>>{};
+        for (auto i = 2; i <= num_pieces; ++i) {
+            auto piece_combinations_for_size = generate_piece_combinations_for_given_size(i);
+            for (auto j : piece_combinations_for_size) {
+                res.emplace_back(j);
+            }
+        }
+        return res;
+    }
+
+    auto generate_subsets_of_piece_combination(std::vector<char> const& max_piece_combination) -> std::vector<std::vector<char>> {
         auto res = std::vector<std::vector<char>>{};
 
         int enumerator = 0;
         auto non_king_pieces = std::vector<char>{};
-        std::cout << "test\n";
 
-        std::copy_if(max_piece_combination.begin(), max_piece_combination.end(), std::back_inserter(non_king_pieces), [](char& piece){
+        std::copy_if(max_piece_combination.begin(), max_piece_combination.end(), std::back_inserter(non_king_pieces), [](char const& piece){
             return (piece != 'K' and piece != 'k');
         });
 
+
+        std::cout << "size is " << non_king_pieces.size() << "\n";
         // we use this as a bit mask that we increment each time, where the indices of the bit mask
         // represent the inclusion of pieces in the larger combination to produce all subsets
-        for (auto enumerator = 1; enumerator < (1 << non_king_pieces.size()); ++enumerator) {
+        for (auto enumerator = 0; enumerator < (1 << non_king_pieces.size()); ++enumerator) {
             auto curr_subset = std::vector<char>{'k', 'K'};
+            std::cout << enumerator << "\n";
             for (auto i = 0; i < non_king_pieces.size(); ++i) {
-                if (enumerator >> i) {
+                if ((enumerator >> i) & 1) {
                     curr_subset.emplace_back(non_king_pieces[i]);
                 }
             }
             res.emplace_back(curr_subset);
+        }
+
+        for (auto i : res) {
+            for (auto j : i) {
+                std::cout << j;
+            }
+            std::cout << "\n";
         }
 
         return res;

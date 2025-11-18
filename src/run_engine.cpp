@@ -14,59 +14,44 @@ auto constexpr MAX_PIECES_ALLOWED = 5;
 
 // This program will generate an output csv file to be used as a tablebase for the get_next_move file
 int main(int argc, char** argv) {
-    int num_ending_pieces;
-    int max_pieces_present;
-    int depth_to_mate_checked;
-    auto starting_pieces = std::vector<char>{};
+    if (argc < 3) {
+        std::cout << "Usage is:\n"
+            << "./run_engine     <int>max_depth_to_mate   <int>max_num_pieces    <optional string>starting_pieces\n\n\n"
 
-    // process/acquire arguments to tablebase generator
-    if (argc < 5) {
-        std::cout << "Enter the number of pieces that will be present at checkmate (integer): ";
-        if (not (std::cin >> num_ending_pieces)) {
-            std::cout << "Error: incorrect input type for integer.\n";
-            return 1;
-        }
+            << "\tmax_depth_to_mate is an integer that tells our engine how many unmoves from "
+            << "checkmate our engine should explore.\n\n"
 
-        std::cout << "Enter the max number of pieces allowed to appear (integer): ";
-        if (not (std::cin >> max_pieces_present)) {
-            std::cout << "Error: incorrect input type for integer.\n";
-            return 1;
-        }
+            << "\tmax_num_pieces is an integer that tells our engine how many pieces we wish to "
+            << "solve the game for (i.e. board states with pieces less than or equal to the amount "
+            << "provided will be checked for).\n\n"
 
-        std::cout << "Enter the max number of unmoves/depth to mate to check (integer): ";
-        if (not (std::cin >> depth_to_mate_checked)) {
-            std::cout << "Error: incorrect input type for integer.\n";
-            return 1;
-        }
+            << "\tstarting_pieces is an optional string parameter with no spaces containing "
+            << "letters from {K, Q, R, B, N, k, q, r, b, n}, e.g. the string 'KkQn' will suffice, "
+            << "using FEN notation for the pieces, with capital letters representing pieces of the "
+            << "white player (which we assume to be our user to avoid duplication of logic for "
+            << "handling otherwise).\n\tThis represents the set of pieces which we are solving "
+            << "various board states for. In the case where this parameter is empty, we solve for "
+            << "all combinations of starting pieces that fit the earlier constraints (this "
+            << "will likely take significantly longer due to its combinatoric nature).\n\n"
+            ;
 
-        std::cout   << "Enter the pieces (ignoring position) currently on your board (as a string "
-                    << "with no spaces, containing any of [K, Q, R, B, N, P, k, q, r, b, n, p], "
-                    << "where capital letters are white pieces and lowercase are black pieces, "
-                    << "i.e. FEN notation for pieces, e.g. kKQ). Enter the empty string to test "
-                    << "for all possible pieces: ";
-        std::string temp_string;
-        if (not (std::cin >> temp_string)) {
-            std::cout << "Error: string not entered.\n";
-            return 1;
-        }
-        for (auto i : temp_string) {
-            starting_pieces.emplace_back(i);
-        }
-    } else {
-        num_ending_pieces = std::stoi(argv[1]);
-        max_pieces_present = std::stoi(argv[2]);
-        depth_to_mate_checked = std::stoi(argv[3]);
-
-        for (auto i : std::string{argv[4]}) {
-            starting_pieces.emplace_back(i);
-        }
+        return 0;
     }
 
-    if (num_ending_pieces < MIN_PIECES_ALLOWED or num_ending_pieces > MAX_PIECES_ALLOWED) {
-        std::cout << "Error: Bad end piece count, please be at least 2 and less than 5.\n";
-        return 1;
-    } else if (num_ending_pieces > max_pieces_present) {
-        std::cout << "Error: Bad max piece count, is less than end piece count.\n";
+    const int depth_to_mate_checked = std::stoi(argv[1]);
+    const int max_pieces_present = std::stoi(argv[2]);
+    const auto starting_pieces_string = (argc == 4) ? std::string{argv[3]} : std::string{};
+    const auto starting_pieces = std::vector<char>{starting_pieces_string.begin(), starting_pieces_string.end()};
+
+
+    if (
+        max_pieces_present < MIN_PIECES_ALLOWED or
+        max_pieces_present > MAX_PIECES_ALLOWED or
+        ((starting_pieces.size() != 0) and (max_pieces_present != starting_pieces.size()))
+    ) {
+        std::cout << "Error: Bad max piece count, please be at least 2 and less than 5, "
+            << "and be equal to the number of pieces provided in the starting pieces string.\n"
+            ;
         return 1;
     }
 
@@ -75,12 +60,14 @@ int main(int argc, char** argv) {
     if (starting_pieces.empty()) {
         // this version of the function generates all piece combinations with a number of pieces
         // less than or equal to the max_pieces_present supplied
-        piece_combinations = helper::generate_piece_combinations(num_ending_pieces);
+        piece_combinations = std::move(helper::generate_piece_combinations(max_pieces_present));
     } else {
+        // this version of the function generates all piece combinations which are a subset of our
+        // given piece combination
         piece_combinations = std::move(helper::generate_subsets_of_piece_combination(starting_pieces));
     }
 
-    // this is according to n + k - 1 choose k, where n = 10, k = num_ending_pieces, unless pieces are provided
+    // this is according to n + k - 1 choose k, where n = 10, k = max_pieces_present, unless pieces are provided
     std::cout << "There are " << piece_combinations.size() << " combinations of pieces.\n";
 
     // for now we use an unordered set of strings, because afaik gcc has some error when trying to
@@ -118,11 +105,11 @@ int main(int argc, char** argv) {
 
 
     while (depth_to_mate_forced_wins_for_white.size() <= depth_to_mate_checked) {
-        std::cout   << "Checking for new move depth: "
-                    << depth_to_mate_forced_wins_for_white.size()
-                    << ", last iteration had "
-                    << depth_to_mate_forced_wins_for_white.back().size()
-                    << " boards.\n";
+        std::cout << "Checking for new move depth: "
+            << depth_to_mate_forced_wins_for_white.size()
+            << ", last iteration had "
+            << depth_to_mate_forced_wins_for_white.back().size()
+            << " boards.\n";
         auto temp = std::unordered_set<std::string>();
         for (auto i : depth_to_mate_forced_wins_for_white.back()) {
             if (depth_to_mate_forced_wins_for_white.size() % 2 == 1) {
