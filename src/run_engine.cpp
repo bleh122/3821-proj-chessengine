@@ -73,9 +73,11 @@ int main(int argc, char** argv) {
     // generate combinations of pieces from which to generate checkmates for retrograde analysis
     auto piece_combinations = std::vector<std::vector<char>>{};
     if (starting_pieces.empty()) {
+        // this version of the function generates all piece combinations with a number of pieces
+        // less than or equal to the max_pieces_present supplied
         piece_combinations = helper::generate_piece_combinations(num_ending_pieces);
     } else {
-        piece_combinations.emplace_back(starting_pieces);
+        piece_combinations = std::move(helper::generate_subsets_of_piece_combination(starting_pieces));
     }
 
     // this is according to n + k - 1 choose k, where n = 10, k = num_ending_pieces, unless pieces are provided

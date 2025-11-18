@@ -16,11 +16,14 @@ namespace helper {
     // whether it is their turn or not) and the opposite for the opponent.
     // We assume a board side length of 8, making the current code rather brittle to solving chess
     // games with larger boards.
+    // We currently assume that endgames do not include pawns due to computational constraints
 
     // private functions
     namespace {
-        // Pieces are represented as characters in this representation
-        auto const piece_types_without_kings = std::set<char>{'B', 'N', 'P', 'Q', 'R', 'b', 'n', 'p', 'q', 'r'};
+        // Pieces are represented as characters in this representation, we ignore pawns currently
+        auto const piece_types_without_kings = std::set<char>{'B', 'N', 'Q', 'R', 'b', 'n', 'q', 'r'};
+        // auto const piece_types_without_kings = std::set<char>{'B', 'N', 'P', 'Q', 'R', 'b', 'n', 'p', 'q', 'r'};
+
         auto const num_board_squares_minus_one = 63;
 
         auto find_iter_piece(char const& prev) -> std::set<char>::iterator {
@@ -48,6 +51,32 @@ namespace helper {
         }
 
         return states;
+    }
+
+    auto generate_subsets_of_piece_combination(std::vector<char>& max_piece_combination) -> std::vector<std::vector<char>> {
+        auto res = std::vector<std::vector<char>>{};
+
+        int enumerator = 0;
+        auto non_king_pieces = std::vector<char>{};
+        std::cout << "test\n";
+
+        std::copy_if(max_piece_combination.begin(), max_piece_combination.end(), std::back_inserter(non_king_pieces), [](char& piece){
+            return (piece != 'K' and piece != 'k');
+        });
+
+        // we use this as a bit mask that we increment each time, where the indices of the bit mask
+        // represent the inclusion of pieces in the larger combination to produce all subsets
+        for (auto enumerator = 1; enumerator < (1 << non_king_pieces.size()); ++enumerator) {
+            auto curr_subset = std::vector<char>{'k', 'K'};
+            for (auto i = 0; i < non_king_pieces.size(); ++i) {
+                if (enumerator >> i) {
+                    curr_subset.emplace_back(non_king_pieces[i]);
+                }
+            }
+            res.emplace_back(curr_subset);
+        }
+
+        return res;
     }
 
     // private functions
@@ -393,7 +422,8 @@ namespace helper {
             auto piece = curr.at<chess::Piece>(sq);
 
             if ((piece == chess::Piece::WHITEPAWN) or (piece == chess::Piece::BLACKPAWN)) {
-                // currently commenting out pawn logic due to buggy impl
+                // currently commenting out pawn logic due to the increases in time taken caused by
+                // generating pawn unmoves, uncaptures and unpromotions
 
                 // auto predecessor_FEN_strings = generate_predecessor_board_states_for_pawns(piece, sq, FEN_string, isWhiteTurn);
                 // for (auto predecessor_FEN_string : predecessor_FEN_strings) {
