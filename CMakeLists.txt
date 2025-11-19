@@ -60,6 +60,9 @@ set(CMAKE_CXX_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT "-fsanitize=address,undefined
 # -------------- DO NOT MODIFY ABOVE THIS LINE --------------- #
 # ------------------------------------------------------------ #
 
+enable_testing()
+include_directories(${CMAKE_SOURCE_DIR}/external/catch2)
+
 
 include_directories(${CMAKE_SOURCE_DIR}/external/chess-library/include)
 
@@ -68,6 +71,13 @@ link_libraries(helper)
 
 add_executable(run_engine src/run_engine.cpp)
 add_executable(get_next_move src/get_next_move.cpp)
+
+add_executable(endgame_tablebase_test
+    src/endgame_tablebase.test.cpp
+    external/catch2_main.cpp
+)
+
+add_test(endgame_tablebase_test endgame_tablebase_test)
 
 target_compile_options(run_engine PRIVATE
     -w
@@ -78,5 +88,9 @@ target_compile_options(get_next_move PRIVATE
 )
 
 target_compile_options(helper PRIVATE
+    -w
+)
+
+target_compile_options(endgame_tablebase_test PRIVATE
     -w
 )

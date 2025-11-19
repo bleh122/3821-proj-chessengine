@@ -3,11 +3,16 @@
 
 #include <vector>
 #include <string>
+#include <chess.hpp>
 #include <unordered_set>
 
 namespace helper {
     // Utility function for printing boards to terminal, primarily was used during development for debugging
     auto print_FEN_as_ASCII_board(std::string const& input) -> void;
+
+    // Utility function used to convert a board from chess-library to a FEN string (according to our
+    // requirements, which sets default values for non-positional/turn related information)
+    auto board_to_FEN_wrapper(chess::Board const& board) -> std::string;
 
     // Generates a list of combinations of pieces, where they are legal (contain kK) and are all
     // less than or equal in size to our input integer
@@ -33,6 +38,9 @@ namespace helper {
     // a state where we can force a win (a state can go from returning false to returning true
     // upon repeated queries as our set of known forced wins increases)
     auto is_forced_win(std::string const& current_board, std::unordered_set<std::string> const& known_forced_wins) -> bool;
+
+    // Finds the depth to mate for the state. If the state is not in the tablebase, -1 is returned
+    auto get_depth_to_mate_for_state(std::string const& FEN_string, std::vector<std::unordered_set<std::string>> const& states_with_forceable_wins_for_white) -> int;
 }
 
 

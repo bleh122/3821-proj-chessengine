@@ -302,11 +302,6 @@ namespace helper {
 
             return res;
         }
-
-        auto board_to_FEN_wrapper(chess::Board const& board) -> std::string {
-            auto array_representation = convert_FEN_to_array(board.getFen());
-            return convert_array_to_FEN(array_representation, (board.sideToMove() == chess::Color::WHITE));
-        }
     }
 
 
@@ -486,6 +481,11 @@ namespace helper {
         print_board_array_representation(convert_FEN_to_array(input));
     }
 
+    auto board_to_FEN_wrapper(chess::Board const& board) -> std::string {
+        auto array_representation = convert_FEN_to_array(board.getFen());
+        return convert_array_to_FEN(array_representation, (board.sideToMove() == chess::Color::WHITE));
+    }
+
     auto is_forced_win(std::string const& current_board, std::unordered_set<std::string> const& known_forced_wins) -> bool {
         for (auto curr_successor_board : generate_successor_boards(current_board)) {
             if (not known_forced_wins.contains(curr_successor_board)) {
@@ -494,6 +494,19 @@ namespace helper {
         }
 
         return true;
+    }
+
+    auto get_depth_to_mate_for_state(
+        std::string const& FEN_string,
+        std::vector<std::unordered_set<std::string>> const& states_with_forceable_wins_for_white
+    ) -> int {
+        for (auto i = 0; i < states_with_forceable_wins_for_white.size(); ++i) {
+            if (states_with_forceable_wins_for_white[i].contains(FEN_string)) {
+                return i;
+            }
+        }
+
+        return -1;
     }
 }
 

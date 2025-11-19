@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <chess.hpp>
-#include "helper.cpp"
+#include "helper.h"
 #include <map>
 
 auto convert_components_to_FEN(std::string& FEN_position, std::string& player_turn) -> std::string {
@@ -10,19 +10,6 @@ auto convert_components_to_FEN(std::string& FEN_position, std::string& player_tu
     res.append(player_turn);
     res.append(" - - 0 1");
     return res;
-}
-
-auto get_depth_to_mate_for_state(
-    std::string& FEN_string,
-    std::vector<std::unordered_set<std::string>> states_with_forceable_wins_for_white
-) -> int {
-    for (auto i = 0; i < states_with_forceable_wins_for_white.size(); ++i) {
-        if (states_with_forceable_wins_for_white[i].contains(FEN_string)) {
-            return i;
-        }
-    }
-
-    return -1;
 }
 
 auto get_curr_board_FEN() {
@@ -71,7 +58,7 @@ int main(void) {
         states_with_forceable_wins_for_white[depth_to_mate].emplace(curr_FEN);
     }
 
-    while (depth_to_mate = get_depth_to_mate_for_state(FEN_string, states_with_forceable_wins_for_white)) {
+    while (depth_to_mate = helper::get_depth_to_mate_for_state(FEN_string, states_with_forceable_wins_for_white)) {
         if (depth_to_mate == -1) {
             std::cout << "There is no forced win for this board state according to our current "
                 << "endgame tablebase.\n";
