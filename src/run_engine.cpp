@@ -3,7 +3,7 @@
 #include <chess.hpp>
 #include <stdint.h>
 #include <array>
-#include "./helper.cpp"
+#include "./helper.h"
 #include <string>
 #include <unordered_set>
 #include <fstream>
@@ -14,6 +14,7 @@ auto constexpr MAX_PIECES_ALLOWED = 5;
 
 // This program will generate an output csv file to be used as a tablebase for the get_next_move file
 int main(int argc, char** argv) {
+    // Processing command line arguments
     if (argc < 3) {
         std::cout << "Usage is:\n"
             << "./run_engine     <int>max_depth_to_mate   <int>max_num_pieces    <optional string>starting_pieces\n\n\n"
@@ -43,7 +44,6 @@ int main(int argc, char** argv) {
     const auto starting_pieces_string = (argc == 4) ? std::string{argv[3]} : std::string{};
     const auto starting_pieces = std::vector<char>{starting_pieces_string.begin(), starting_pieces_string.end()};
 
-
     if (
         max_pieces_present < MIN_PIECES_ALLOWED or
         max_pieces_present > MAX_PIECES_ALLOWED or
@@ -55,24 +55,25 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // generate combinations of pieces from which to generate checkmates for retrograde analysis
+
+    // ALGORITHM IMPLEMENTATION FOR ENDGAME TABLEBASE GENERATION BEGINS HERE
+    // Generate combinations of pieces from which to generate checkmates for retrograde analysis
     auto piece_combinations = std::vector<std::vector<char>>{};
     if (starting_pieces.empty()) {
-        // this version of the function generates all piece combinations with a number of pieces
+        // This version of the function generates all piece combinations with a number of pieces
         // less than or equal to the max_pieces_present supplied
         piece_combinations = std::move(helper::generate_piece_combinations(max_pieces_present));
     } else {
-        // this version of the function generates all piece combinations which are a subset of our
+        // This version of the function generates all piece combinations which are a subset of our
         // given piece combination
         piece_combinations = std::move(helper::generate_subsets_of_piece_combination(starting_pieces));
     }
 
-    // this is according to n + k - 1 choose k, where n = 10, k = max_pieces_present, unless pieces are provided
+    // This is according to n + k - 1 choose k, where n = 10, k = max_pieces_present, unless pieces are provided
     std::cout << "There are " << piece_combinations.size() << " combinations of pieces.\n";
 
-    // for now we use an unordered set of strings, because afaik gcc has some error when trying to
-    // use the overriden equality operator for chess::Board for comparisons in the unordered set
-    // can maybe use tries in the future since they are strings?
+    // For now we use an unordered set of strings, as the chess::Board type does not overload the
+    // == operator in a manner that allows for unordered_set to be used for it
     auto checkmate_states = std::unordered_set<std::string>();
     for (auto i : piece_combinations) {
         auto combination = std::string{};
@@ -84,15 +85,16 @@ int main(int argc, char** argv) {
         auto some_checkmates = helper::generate_checkmates_for_piece_set_for_player(i);
         for (auto j : some_checkmates) {
             checkmate_states.insert(j);
-            // break;
         }
     }
 
-    // a set of all states with forceable wins for white (regardless of moves to mate)
+
+    // A set of all states with forceable wins for white (regardless of depth to mate, and 
+    // containing board states from the turns of both white and black players)
     auto states_with_forceable_wins_for_white = std::unordered_set<std::string>();
     states_with_forceable_wins_for_white.insert(checkmate_states.begin(), checkmate_states.end());
 
-    // we use a vector to allow us to store the following:
+    // We use a vector to allow us to store the following information:
     // let n = index of element in vector
     // if n is even, then the element represents it being the black players turn and there being n
     //      moves left before forced checkmate (i.e. the black player can take any move and will
@@ -110,43 +112,45 @@ int main(int argc, char** argv) {
             << ", last iteration had "
             << depth_to_mate_forced_wins_for_white.back().size()
             << " boards.\n";
-        auto temp = std::unordered_set<std::string>();
+        auto curr_depth_forced_wins = std::unordered_set<std::string>();
         for (auto i : depth_to_mate_forced_wins_for_white.back()) {
             if (depth_to_mate_forced_wins_for_white.size() % 2 == 1) {
-                // it's white's move this turn
-                // these are states where white can select a move that will result in them winning
+                // It's white's move this turn
+                // These are states where white can select a move that will result in them winning
                 auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, true, max_pieces_present);
 
                 for (auto j : possible_predecessor_boards) {
-                    // avoid recalculation for states we already know to be winning
+                    // Avoid recalculation for states we already know to be winning
                     if (not states_with_forceable_wins_for_white.contains(j)) {
-                        temp.emplace(j);
+                        curr_depth_forced_wins.emplace(j);
                     }
                 }
             } else {
-                // it's black's move this turn
-                // these are states where whatever move black takes, they will lose in the end
+                // It's black's move this turn
+                // These are states where whatever move black takes, they will lose in the end
                 auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false, max_pieces_present);
                 for (auto j: possible_predecessor_boards) {
                     if (helper::is_forced_win(j, states_with_forceable_wins_for_white)) {
+                        // Avoid recalculation for states we already know to be winning
                         if (not states_with_forceable_wins_for_white.contains(j)) {
-                            temp.emplace(j);
+                            curr_depth_forced_wins.emplace(j);
                         }
                     }
                 }
-                // break;
             }
         }
-        depth_to_mate_forced_wins_for_white.emplace_back(temp);
-        states_with_forceable_wins_for_white.insert(temp.begin(), temp.end());
+
+        depth_to_mate_forced_wins_for_white.emplace_back(curr_depth_forced_wins);
+        states_with_forceable_wins_for_white.insert(curr_depth_forced_wins.begin(), curr_depth_forced_wins.end());
     }
 
-    // output our results to a file storing our results
+
+    // POST PROCESSING OF OUR RESULTANT ENDGAME TABLEBASE OCCURS HERE, MAINLY FOR SAVING OUTPUT
     auto output_file = std::ofstream("output.csv");
 
-    // c++ streaming input from a file splits it by whitespace, so we can try format our output
+    // C++ streaming input from a file splits it by whitespace, so here we format our output
     // to take advantage of this in the form "depth_to_mate FEN_position_segment player_turn"
-    // for each row of the csv
+    // for each row of a CSV file
     for (auto i = 0; i < depth_to_mate_forced_wins_for_white.size(); ++i) {
         for (auto j : depth_to_mate_forced_wins_for_white[i]) {
             auto FEN_position_segment = std::string{};
@@ -157,7 +161,6 @@ int main(int argc, char** argv) {
             }
 
             auto player_turn = *(++j_iter);
-
 
             output_file << i << " " << FEN_position_segment << " " << player_turn << "\n";
         }
