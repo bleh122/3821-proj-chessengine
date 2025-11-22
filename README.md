@@ -30,3 +30,7 @@ The above will generate an `output.csv` file in the build directory, which store
 ./gen_next_move
 ```
 This command accepts string input of FEN notation for the position of pieces on the board (the section similar to 8/8/8/8/8/8/8/8, and nothing else) with the assumption that the player is on the white side (if playing for black, then invert the colours of pieces) with the current turn being for the white player.
+
+
+Disclaimer:
+This repository utilises the third party libraries [chess-library](https://github.com/Disservin/chess-library) and [catch-2](https://github.com/catchorg/Catch2), which respectively are distributed under the MIT and BSL1.0 licenses. They are included in this repository under the `external/` directory as vendor-provided libraries for the sake of convenience, all credit for these libraries go towards their respective contributors, and both licenses are upheld in this repository's NOTICE.
