@@ -508,6 +508,101 @@ namespace helper {
 
         return -1;
     }
+
+    // This function generates the complete tablebase corresponding to the input parameters,
+    // and returns the generated tablebase, done as a modification of the code from the
+    // ./run_engine program, albeit with terminal output (logging) removed.
+    auto definitive_generate_tablebase(
+        int const depth_to_mate_checked,
+        int const max_pieces_present,
+        std::vector<char> const starting_pieces
+    ) -> std::vector<std::unordered_set<std::string>> {
+        // Generate combinations of pieces from which to generate checkmates for retrograde analysis
+        auto piece_combinations = std::vector<std::vector<char>>{};
+        if (starting_pieces.empty()) {
+            piece_combinations = std::move(helper::generate_piece_combinations(max_pieces_present));
+        } else {
+            piece_combinations = std::move(helper::generate_subsets_of_piece_combination(starting_pieces));
+        }
+
+        auto checkmate_states = std::unordered_set<std::string>();
+        for (auto i : piece_combinations) {
+            auto combination = std::string{};
+            for (auto j : i) {
+                combination.push_back(j);
+            }
+
+            auto some_checkmates = helper::generate_checkmates_for_piece_set_for_player(i);
+            for (auto j : some_checkmates) {
+                checkmate_states.insert(j);
+            }
+        }
+
+        auto states_with_forceable_wins_for_white = std::unordered_set<std::string>();
+        states_with_forceable_wins_for_white.insert(checkmate_states.begin(), checkmate_states.end());
+
+        auto depth_to_mate_forced_wins_for_white = std::vector<std::unordered_set<std::string>>{};
+        depth_to_mate_forced_wins_for_white.emplace_back(checkmate_states);
+
+
+        while (depth_to_mate_forced_wins_for_white.size() <= depth_to_mate_checked) {
+            auto curr_depth_forced_wins = std::unordered_set<std::string>();
+            for (auto i : depth_to_mate_forced_wins_for_white.back()) {
+                if (depth_to_mate_forced_wins_for_white.size() % 2 == 1) {
+                    auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, true, max_pieces_present);
+
+                    for (auto j : possible_predecessor_boards) {
+                        if (not states_with_forceable_wins_for_white.contains(j)) {
+                            curr_depth_forced_wins.emplace(j);
+                        }
+                    }
+                } else {
+                    auto possible_predecessor_boards = helper::generate_predecessor_board_states(i, false, max_pieces_present);
+                    for (auto j: possible_predecessor_boards) {
+                        if (helper::is_forced_win(j, states_with_forceable_wins_for_white)) {
+                            if (not states_with_forceable_wins_for_white.contains(j)) {
+                                curr_depth_forced_wins.emplace(j);
+                            }
+                        }
+                    }
+                }
+            }
+
+            depth_to_mate_forced_wins_for_white.emplace_back(curr_depth_forced_wins);
+            states_with_forceable_wins_for_white.insert(curr_depth_forced_wins.begin(), curr_depth_forced_wins.end());
+        }
+
+        return depth_to_mate_forced_wins_for_white;
+    }
+
+    // This helper is a modified version of the program ./get_next_move, findding the set of optimal moves
+    // (where optimal means it takes the fewest moves to force checkmate)
+    auto definitive_get_next_move(
+        std::string const& FEN_string,
+        std::vector<std::unordered_set<std::string>> const& depth_to_mate_forced_wins_for_white
+    ) -> std::set<std::string> {
+        auto res = std::set<std::string>{};
+        auto const depth_to_mate = helper::get_depth_to_mate_for_state(FEN_string, depth_to_mate_forced_wins_for_white);
+
+        if (depth_to_mate == -1) return res;
+
+        auto board = chess::Board(FEN_string);
+
+        auto movelist = chess::Movelist();
+        chess::movegen::legalmoves(movelist, board);
+
+        for (auto curr_move : movelist) {
+            auto successor_board = chess::Board(FEN_string);
+            successor_board.makeMove(curr_move);
+            auto successor_FEN = helper::board_to_FEN_wrapper(successor_board);
+
+            if (depth_to_mate_forced_wins_for_white[depth_to_mate - 1].contains(successor_FEN)) {
+                res.emplace(successor_FEN);
+            }
+        }
+
+        return res;
+    }
 }
 
 

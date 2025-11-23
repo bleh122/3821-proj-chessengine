@@ -5,6 +5,7 @@
 #include <string>
 #include <chess.hpp>
 #include <unordered_set>
+#include <set>
 
 namespace helper {
     // Utility function for printing boards to terminal, primarily was used during development for debugging
@@ -41,6 +42,21 @@ namespace helper {
 
     // Finds the depth to mate for the state. If the state is not in the tablebase, -1 is returned
     auto get_depth_to_mate_for_state(std::string const& FEN_string, std::vector<std::unordered_set<std::string>> const& states_with_forceable_wins_for_white) -> int;
+
+    // This function generates an endgame tablebase for the provided parameters,
+    // done so according to the definition provided by our algorithm
+    auto definitive_generate_tablebase(
+        int const depth_to_mate_checked,
+        int const max_pieces_present,
+        std::vector<char> const starting_pieces
+    ) -> std::vector<std::unordered_set<std::string>>;
+
+    // This function probes an endgame tablebase to find an optimal move for a given board state,
+    // done so according to the definition provided by our algorithm
+    auto definitive_get_next_move(
+        std::string const& FEN_string,
+        std::vector<std::unordered_set<std::string>> const& depth_to_mate_forced_wins_for_white
+    ) -> std::set<std::string>;
 }
 
 
